@@ -19,12 +19,13 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <time.h>
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum State{
+enum odrive_State{
     AXIS_STATE_UNDEFINED = 0,
     AXIS_STATE_IDLE,
     AXIS_STATE_STARTUP_SEQUENCE,
@@ -38,7 +39,7 @@ enum State{
     AXIS_STATE_ENCODER_DIR_FIND,
 };
 
-enum ControlMode{
+enum odrive_ControlMode{
     CTRL_MODE_VOLTAGE_CONTROL = 0,
     CTRL_MODE_CURRENT_CONTROL,
     CTRL_MODE_VELOCITY_CONTROL,
@@ -46,7 +47,7 @@ enum ControlMode{
     CTRL_MODE_TRAJECTORY_CONTROL
 };
 
-struct Settings
+struct odrive_Settings
 {
     boolean_T isPort;
     uint8_T serial[64];
@@ -65,7 +66,7 @@ struct Settings
     real32_T watchdogTimeout[2];
 };
 
-struct Data
+struct odrive_Data
 {
     int16_T error[2];
     real32_T posSetpoint[2];
@@ -87,16 +88,17 @@ struct Data
     real32_T velIntegratorCurrentAct[2];
 };
 
-void initialize(struct Settings *settings);
-void step(struct Data *data);
-void terminate();
-uint8_T detectOdrivePort(uint8_T *serial, uint8_T *portName);
-int32_T openSerialPort(uint8_T *portName);
-void startupSequence(int32_T f, uint8_T axis);
-void waitSetupStatus(int32_T f, struct Settings *settings);
-void setConfiguration(int32_T f, uint8_T axis, struct Settings *settings);
-void sendMessage(int32_T f, uint8_T *message);
-void receiveMessage(int32_T f, uint8_T *message, uint8_T len);
+void odrive_initialize(struct odrive_Settings *settings);
+void odrive_step(struct odrive_Data *data);
+void odrive_terminate();
+void *odrive_tic(void *pdata);
+uint8_T odrive_detectOdrivePort(uint8_T *serial, uint8_T *portName);
+int32_T odrive_openSerialPort(uint8_T *portName);
+void odrive_startupSequence(int32_T f, uint8_T axis);
+void odrive_waitSetupStatus(int32_T f, struct odrive_Settings *settings);
+void odrive_setConfiguration(int32_T f, uint8_T axis, struct odrive_Settings *settings);
+void odrive_sendMessage(int32_T f, uint8_T *message);
+void odrive_receiveMessage(int32_T f, uint8_T *message, uint8_T len);
 
 #ifdef __cplusplus
 }

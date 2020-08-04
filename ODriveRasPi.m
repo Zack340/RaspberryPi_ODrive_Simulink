@@ -121,8 +121,8 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                                   'velRampEnable', [obj.isVelRamp0, obj.isVelRamp1],...
                                   'watchdogTimeout', single([obj.watchdog0, obj.watchdog1]));
                 
-                coder.cstructname(settings, 'struct Settings', 'extern', 'HeaderFile', 'odrive_raspi.h');
-                coder.ceval('initialize', coder.ref(settings));
+                coder.cstructname(settings, 'struct odrive_Settings', 'extern', 'HeaderFile', 'odrive_raspi.h');
+                coder.ceval('odrive_initialize', coder.ref(settings));
             end
         end
         
@@ -158,8 +158,8 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                               'actualVelocity', zeros(2, 1, 'single'),...
                               'actualCurrent', zeros(2, 1, 'single'),...
                               'velIntegratorCurrentAct', zeros(2, 1, 'single'));
-                coder.cstructname(data, 'struct Data', 'extern', 'HeaderFile', 'odrive_raspi.h');
-                coder.ceval('step', coder.ref(data));
+                coder.cstructname(data, 'struct odrive_Data', 'extern', 'HeaderFile', 'odrive_raspi.h');
+                coder.ceval('odrive_step', coder.ref(data));
                 
                 y{1} = data.error;
                 y{2} = double(data.actualPosition(1));
@@ -182,7 +182,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
             if isempty(coder.target)
                 % Place simulation termination code here
             else
-                coder.ceval('terminate');
+                coder.ceval('odrive_terminate');
             end
         end
     end
@@ -584,6 +584,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                 % Use the following API's to add include files, sources and
                 % linker flags
                 addSourceFiles(buildInfo,'odrive_raspi.c', srcDir);
+                addLinkFlags(buildInfo,'-lpthread');
             end
         end
     end
