@@ -438,7 +438,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                 elseif strcmp(propertyName, 'velLimitTol0')
                     disable = ~obj.isAxis0 | strcmp(obj.ctrlMode0, 'Current') | obj.isExternal0;
                 elseif strcmp(propertyName, 'velRampRate0')
-                    disable = ~obj.isAxis0 | strcmp(obj.ctrlMode0, 'Current') | obj.isExternal0;
+                    disable = ~obj.isAxis0 | ~strcmp(obj.ctrlMode0, 'Velocity') | ~obj.isVelRamp0 | obj.isExternal0;
                 elseif strcmp(propertyName, 'ctrlMode1')
                     disable = ~obj.isAxis1;
                 elseif strcmp(propertyName, 'isInCpr1')
@@ -460,7 +460,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                 elseif strcmp(propertyName, 'velLimitTol1')
                     disable = ~obj.isAxis1 | strcmp(obj.ctrlMode1, 'Current') | obj.isExternal1;
                 elseif strcmp(propertyName, 'velRampRate1')
-                    disable = ~obj.isAxis1 | strcmp(obj.ctrlMode1, 'Current') | obj.isExternal1;
+                    disable = ~obj.isAxis1 | ~strcmp(obj.ctrlMode1, 'Velocity') | ~obj.isVelRamp1 | obj.isExternal1;
                 else
                     flag = false;
                 end
