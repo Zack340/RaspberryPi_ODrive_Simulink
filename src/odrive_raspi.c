@@ -1,18 +1,23 @@
 #include "odrive_raspi.h"
 
 #define speed B115200
-struct odrive_Settings *od_sets;
-int32_T od_f;
-pthread_t od_thread;
-struct odrive_Data *od_pdata;
+#define maxOdrives 16
+
+struct odrive_Settings *od_sets[maxOdrives];
+int32_T od_f[maxOdrives];
+pthread_t od_thread[maxOdrives];
+struct odrive_Data *od_pdata[maxOdrives];
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void odrive_initialize(struct odrive_Settings *settings)
+int8_T odrive_initialize(struct odrive_Settings *settings)
 {
-    od_sets = settings;
+    static int8_T threadID = -1;
+    ++threadID;
+    
+    od_sets[threadID] = settings;
     
     uint8_T portName[64];
     if (settings->isPort)
@@ -30,8 +35,8 @@ void odrive_initialize(struct odrive_Settings *settings)
         }
     }
     
-    od_f = odrive_openSerialPort(portName);
-    if (od_f == -1)
+    od_f[threadID] = odrive_openSerialPort(portName);
+    if (od_f[threadID] == -1)
     {
         fprintf(stderr, "Failed to open the serial port: %s\n", strerror(errno));
 		exit(1);
@@ -41,144 +46,150 @@ void odrive_initialize(struct odrive_Settings *settings)
     {
         if (settings->isAxis[i])
         {
-            odrive_startupSequence(od_f, i);
+            odrive_startupSequence(od_f[threadID], i);
         }
     }
     
-    odrive_waitSetupStatus(od_f, settings);
+    odrive_waitSetupStatus(od_f[threadID], settings);
     
     for (uint8_T i = 0; i < 2; ++i)
     {
         if (settings->isAxis[i])
         {
-            odrive_setConfiguration(od_f, i, settings);
+            odrive_setConfiguration(od_f[threadID], i, settings);
         }
     }
     
-    od_pdata = (struct odrive_Data *)malloc(sizeof(struct odrive_Data));
+    od_pdata[threadID] = (struct odrive_Data *)malloc(sizeof(struct odrive_Data));
     for (uint8_T i = 0; i < 2; ++i)
     {
-        od_pdata->error[i] = 0;
-        od_pdata->actualPosition[i] = 0;
-        od_pdata->actualVelocity[i] = 0;
-        od_pdata->actualCurrent[i] = 0;
-        od_pdata->velIntegratorCurrentAct[i] = 0;
+        od_pdata[threadID]->error[i] = 0;
+        od_pdata[threadID]->actualPosition[i] = 0;
+        od_pdata[threadID]->actualVelocity[i] = 0;
+        od_pdata[threadID]->actualCurrent[i] = 0;
+        od_pdata[threadID]->velIntegratorCurrentAct[i] = 0;
     }
+    
+    printf("%s : %s : %d: %d\n", settings->serial, portName, od_f[threadID], threadID);
+    
+    return threadID;
 }
 
-void odrive_step(struct odrive_Data *data)
+void odrive_step(struct odrive_Data *data, int8_T th)
 {
-    pthread_join(od_thread, NULL);
+    pthread_join(od_thread[th], NULL);
     
     for (uint8_T i = 0; i < 2; ++i)
     {
-        data->error[i] = od_pdata->error[i];
-        od_pdata->posSetpoint[i] = data->posSetpoint[i];
-        od_pdata->velSetpoint[i] = data->velSetpoint[i];
-        od_pdata->currentSetpoint[i] = data->currentSetpoint[i];
-        od_pdata->posGain[i] = data->posGain[i];
-        od_pdata->velGain[i] = data->velGain[i];
-        od_pdata->velIntegratorGain[i] = data->velIntegratorGain[i];
-        od_pdata->velIntegratorCurrentRef[i] = data->velIntegratorCurrentRef[i];
-        od_pdata->velIntegratorCurrentTrigger[i] = data->velIntegratorCurrentTrigger[i];
-        od_pdata->velRampEnable[i] = data->velRampEnable[i];
-        od_pdata->velRampTarget[i] = data->velRampTarget[i];
-        od_pdata->velRampRate[i] = data->velRampRate[i];
-        od_pdata->velLimit[i] = data->velLimit[i];
-        od_pdata->velLimitTolerance[i] = data->velLimitTolerance[i];
-        data->actualPosition[i] = od_pdata->actualPosition[i];
-        data->actualVelocity[i] = od_pdata->actualVelocity[i];
-        data->actualCurrent[i] = od_pdata->actualCurrent[i];
-        data->velIntegratorCurrentAct[i] = od_pdata->velIntegratorCurrentAct[i];
+        od_pdata[th]->th = th;
+        data->error[i] = od_pdata[th]->error[i];
+        od_pdata[th]->posSetpoint[i] = data->posSetpoint[i];
+        od_pdata[th]->velSetpoint[i] = data->velSetpoint[i];
+        od_pdata[th]->currentSetpoint[i] = data->currentSetpoint[i];
+        od_pdata[th]->posGain[i] = data->posGain[i];
+        od_pdata[th]->velGain[i] = data->velGain[i];
+        od_pdata[th]->velIntegratorGain[i] = data->velIntegratorGain[i];
+        od_pdata[th]->velIntegratorCurrentRef[i] = data->velIntegratorCurrentRef[i];
+        od_pdata[th]->velIntegratorCurrentTrigger[i] = data->velIntegratorCurrentTrigger[i];
+        od_pdata[th]->velRampEnable[i] = data->velRampEnable[i];
+        od_pdata[th]->velRampTarget[i] = data->velRampTarget[i];
+        od_pdata[th]->velRampRate[i] = data->velRampRate[i];
+        od_pdata[th]->velLimit[i] = data->velLimit[i];
+        od_pdata[th]->velLimitTolerance[i] = data->velLimitTolerance[i];
+        data->actualPosition[i] = od_pdata[th]->actualPosition[i];
+        data->actualVelocity[i] = od_pdata[th]->actualVelocity[i];
+        data->actualCurrent[i] = od_pdata[th]->actualCurrent[i];
+        data->velIntegratorCurrentAct[i] = od_pdata[th]->velIntegratorCurrentAct[i];
     }
     
-    pthread_create(&od_thread, NULL, (void *)odrive_tic, (void *)od_pdata);
+    pthread_create(&od_thread[th], NULL, (void *)odrive_tic, (void *)od_pdata[th]);
 }
 
-void odrive_terminate()
+void odrive_terminate(int8_T th)
 {
-    pthread_join(od_thread, NULL);
+    pthread_join(od_thread[th], NULL);
     
     uint8_T send[64];
     for (uint8_T i = 0; i < 2; ++i)
     {
         sprintf(send, "%s%d%s %d", "w axis", i, ".requested_state", AXIS_STATE_IDLE);
-        odrive_sendMessage(od_f, send);
+        odrive_sendMessage(od_f[th], send);
     }
         
-    fclose((FILE*)od_f);
+    fclose((FILE*)od_f[th]);
 }
 
 void *odrive_tic(void *pdata)
 {
     struct odrive_Data *data = (struct odrive_Data *)pdata;
+    uint8_T th = data->th;
     
     uint8_T send[64];
     uint8_T receive[64];
     
     for (uint8_T i = 0; i < 2; ++i)
     {
-        if (od_sets->isAxis[i])
+        if (od_sets[th]->isAxis[i])
         {
             sprintf(send, "%s %d", "u", i);
-            odrive_sendMessage(od_f, send);
+            odrive_sendMessage(od_f[th], send);
             
-            if (od_sets->isExternal[i])
+            if (od_sets[th]->isExternal[i])
             {
                 sprintf(send, "%s%d%s %f", "w axis", i, ".controller.config.pos_gain", data->posGain[i]);
-                odrive_sendMessage(od_f, send);
+                odrive_sendMessage(od_f[th], send);
                 
                 sprintf(send, "%s%d%s %f", "w axis", i, ".controller.config.vel_gain", data->velGain[i]);
-                odrive_sendMessage(od_f, send);
+                odrive_sendMessage(od_f[th], send);
                 
                 sprintf(send, "%s%d%s %f", "w axis", i, ".controller.config.vel_integrator_gain", data->velIntegratorGain[i]);
-                odrive_sendMessage(od_f, send);
+                odrive_sendMessage(od_f[th], send);
                 
                 if (data->velIntegratorCurrentTrigger[i])
                 {
                     sprintf(send, "%s%d%s %f", "w axis", i, ".controller.vel_integrator_current", data->velIntegratorCurrentRef[i]);
-                    odrive_sendMessage(od_f, send);
+                    odrive_sendMessage(od_f[th], send);
                 }
                 
-                if (od_sets->velRampEnable[i])
+                if (od_sets[th]->velRampEnable[i])
                 {
                     sprintf(send, "%s%d%s %d", "w axis", i, ".controller.vel_ramp_enable", data->velRampEnable[i]);
-                    odrive_sendMessage(od_f, send);
+                    odrive_sendMessage(od_f[th], send);
                 }
                 
                 sprintf(send, "%s%d%s %d", "w axis", i, ".controller.config.vel_ramp_rate", data->velRampRate[i]);
-                odrive_sendMessage(od_f, send);
+                odrive_sendMessage(od_f[th], send);
                 
                 sprintf(send, "%s%d%s %f", "w axis", i, ".controller.config.vel_limit", data->velLimit[i]);
-                odrive_sendMessage(od_f, send);
+                odrive_sendMessage(od_f[th], send);
                 
                 sprintf(send, "%s%d%s %f", "w axis", i, ".controller.config.vel_limit_tolerance", data->velLimitTolerance[i]);
-                odrive_sendMessage(od_f, send);
+                odrive_sendMessage(od_f[th], send);
             }
             
-            switch (od_sets->controlMode[i])
+            switch (od_sets[th]->controlMode[i])
             {
                 case CTRL_MODE_POSITION_CONTROL:
                     sprintf(send, "%s %d %f %f %f", "p", i, data->posSetpoint[i], data->velSetpoint[i], data->currentSetpoint[i]);
-                    odrive_sendMessage(od_f, send);
+                    odrive_sendMessage(od_f[th], send);
                     break;
                     
                 case CTRL_MODE_VELOCITY_CONTROL:
-                    if (od_sets->velRampEnable[i])
+                    if (od_sets[th]->velRampEnable[i])
                     {
                         sprintf(send, "%s%d%s %d", "w axis", i, ".controller.vel_ramp_target", data->velRampTarget[i]);
-                        odrive_sendMessage(od_f, send);
+                        odrive_sendMessage(od_f[th], send);
                     }
                     else
                     {
                         sprintf(send, "%s %d %f %f", "v", i, data->velSetpoint[i], data->currentSetpoint[i]);
-                        odrive_sendMessage(od_f, send);
+                        odrive_sendMessage(od_f[th], send);
                     }
                     break;
                     
                 case CTRL_MODE_CURRENT_CONTROL:
                     sprintf(send, "%s %d %f %f", "c", i, data->currentSetpoint[i]);
-                    odrive_sendMessage(od_f, send);
+                    odrive_sendMessage(od_f[th], send);
                     break;
                 default:
                     break;
@@ -187,37 +198,37 @@ void *odrive_tic(void *pdata)
             real32_T pos;
             real32_T vel;
             sprintf(send, "%s %d", "f", i);
-            odrive_sendMessage(od_f, send);
-            odrive_receiveMessage(od_f, receive, sizeof(receive));
+            odrive_sendMessage(od_f[th], send);
+            odrive_receiveMessage(od_f[th], receive, sizeof(receive));
             sscanf(receive, "%f %f", &pos, &vel);
             data->actualPosition[i] = pos;
             data->actualVelocity[i] = vel;
             
             real32_T cur;
             sprintf(send, "%s%d%s", "r axis", i, ".motor.current_control.Iq_measured");
-            odrive_sendMessage(od_f, send);
-            odrive_receiveMessage(od_f, receive, sizeof(receive));
+            odrive_sendMessage(od_f[th], send);
+            odrive_receiveMessage(od_f[th], receive, sizeof(receive));
             sscanf(receive, "%f", &cur);
             data->actualCurrent[i] = cur;
             
             real32_T velcur;
             sprintf(send, "%s%d%s", "r axis", i, ".controller.vel_integrator_current");
-            odrive_sendMessage(od_f, send);
-            odrive_receiveMessage(od_f, receive, sizeof(receive));
+            odrive_sendMessage(od_f[th], send);
+            odrive_receiveMessage(od_f[th], receive, sizeof(receive));
             sscanf(receive, "%f", &velcur);
             data->velIntegratorCurrentAct[i] = velcur;
             
             real32_T err;
             sprintf(send, "%s%d%s", "r axis", i, ".error");
-            odrive_sendMessage(od_f, send);
-            odrive_receiveMessage(od_f, receive, sizeof(receive));
+            odrive_sendMessage(od_f[th], send);
+            odrive_receiveMessage(od_f[th], receive, sizeof(receive));
             sscanf(receive, "%f", &err);
             data->error[i] = err;
             
-            if (err)
-            {
-                odrive_terminate();
-            }
+//             if (err)
+//             {
+//                 odrive_terminate();
+//             }
         }
     }
 }

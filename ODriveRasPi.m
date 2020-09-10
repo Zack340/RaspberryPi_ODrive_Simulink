@@ -55,6 +55,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
     properties (Access = private)
         ctrlMode = uint16([3, 3]);
         ctrlModeName = {'Voltage', 'Current', 'Velocity', 'Position', 'Trajectory'};
+        th = int8(0);
     end
     
     properties(Constant, Hidden)
@@ -91,6 +92,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
     
     methods (Access=protected)
         function setupImpl(obj) %#ok<MANU>
+            y = 0;
             if isempty(coder.target)
                 % Place simulation setup code here
             else
@@ -122,7 +124,8 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                                   'watchdogTimeout', single([obj.watchdog0, obj.watchdog1]));
                 
                 coder.cstructname(settings, 'struct odrive_Settings', 'extern', 'HeaderFile', 'odrive_raspi.h');
-                coder.ceval('odrive_initialize', coder.ref(settings));
+                y = coder.ceval('odrive_initialize', coder.ref(settings));
+                obj.th = y;
             end
         end
         
@@ -159,7 +162,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
                               'actualCurrent', zeros(2, 1, 'single'),...
                               'velIntegratorCurrentAct', zeros(2, 1, 'single'));
                 coder.cstructname(data, 'struct odrive_Data', 'extern', 'HeaderFile', 'odrive_raspi.h');
-                coder.ceval('odrive_step', coder.ref(data));
+                coder.ceval('odrive_step', coder.ref(data), obj.th);
                 
                 y{1} = data.error;
                 y{2} = double(data.actualPosition(1));
@@ -182,7 +185,7 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
             if isempty(coder.target)
                 % Place simulation termination code here
             else
-                coder.ceval('odrive_terminate');
+                coder.ceval('odrive_terminate', obj.th);
             end
         end
     end
@@ -486,7 +489,8 @@ classdef ODriveRasPi < realtime.internal.SourceSampleTime ...
             if isempty(ret{1})
                 msgbox('\bf \fontsize{10} \color{red} Not detected', 'Serial number', 'help', opts);
             else
-                msgbox(['\bf \fontsize{10} \color{blue}', ret{1:end-2}], 'Serial number', 'help', opts);
+                ret = ret(1:end-2);
+                msgbox(strcat(repmat({'\bf \fontsize{10} \color{blue}'}, size(ret)), ret), 'Serial number', 'help', opts);
             end
         end
         

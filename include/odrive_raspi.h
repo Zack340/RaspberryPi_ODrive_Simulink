@@ -68,6 +68,7 @@ struct odrive_Settings
 
 struct odrive_Data
 {
+    int8_T th;
     int16_T error[2];
     real32_T posSetpoint[2];
     real32_T velSetpoint[2];
@@ -88,9 +89,9 @@ struct odrive_Data
     real32_T velIntegratorCurrentAct[2];
 };
 
-void odrive_initialize(struct odrive_Settings *settings);
-void odrive_step(struct odrive_Data *data);
-void odrive_terminate();
+int8_T odrive_initialize(struct odrive_Settings *settings);
+void odrive_step(struct odrive_Data *data, int8_T th);
+void odrive_terminate(int8_T th);
 void *odrive_tic(void *pdata);
 uint8_T odrive_detectOdrivePort(uint8_T *serial, uint8_T *portName);
 int32_T odrive_openSerialPort(uint8_T *portName);
